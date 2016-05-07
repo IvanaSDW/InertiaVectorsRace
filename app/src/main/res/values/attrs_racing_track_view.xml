@@ -1,0 +1,6 @@
+<resources>
+    <declare-styleable name="RacingTrackView">
+        <attr name="gridColor" format="color" />
+        <attr name="gridThickness" format="dimension" />
+    </declare-styleable>
+</resources>

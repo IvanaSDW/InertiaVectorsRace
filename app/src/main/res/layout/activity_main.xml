@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:custom="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootView"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.aurel.inertiavectorsrace.MainActivity">
+
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        xmlns:custom="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.example.aurel.inertiavectorsrace.RacingTrackView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_centerHorizontal="true"
+            custom:gridThickness="0dp"
+            custom:gridColor="@color/colorAccent"
+            android:id="@+id/view" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/startBtn"
+            android:onClick="startBtnPressed"
+            android:layout_alignBottom="@id/view"
+            android:layout_centerHorizontal="true"
+            android:text="Start" />
+        <com.example.aurel.inertiavectorsrace.SteeringView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/steeringView"
+            android:layout_alignEnd="@id/view"
+            android:layout_alignBottom="@id/view"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="20dp"
+            custom:svSize="140dp"
+            android:visibility="gone"/>
+        <Button
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:id="@+id/goBtn"
+            android:text="Go -->"
+            android:layout_alignStart="@id/view"
+            android:layout_alignBottom="@id/view"
+            android:layout_marginStart="20dp"
+            android:layout_marginBottom="40dp"
+            android:alpha="0.8"
+            android:visibility="gone"
+            android:onClick="goButtonPressed"
+            android:longClickable="true" />
+
+    </RelativeLayout>
+    <com.example.aurel.inertiavectorsrace.RaceChronometerView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        custom:chronoWidth="170dp"
+        android:layout_gravity="end"
+        android:paddingEnd="30dp"
+        android:id="@+id/myChrono"
+        android:alpha="0.8"/>
+
+    <android.support.v7.widget.CardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:text="Este es mi cardview"/>
+    </android.support.v7.widget.CardView>
+
+</FrameLayout>
+
