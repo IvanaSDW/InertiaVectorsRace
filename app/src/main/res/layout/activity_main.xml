@@ -26,12 +26,13 @@
             android:id="@+id/view" />
 
         <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="162dp"
+            android:layout_height="100dp"
             android:id="@+id/startBtn"
             android:onClick="startBtnPressed"
             android:layout_alignBottom="@id/view"
-            android:layout_centerHorizontal="true"
+            android:layout_marginStart="40dp"
+            android:layout_marginBottom="40dp"
             android:text="Start" />
         <com.example.aurel.inertiavectorsrace.SteeringView
             android:layout_width="wrap_content"
@@ -44,8 +45,8 @@
             custom:svSize="140dp"
             android:visibility="gone"/>
         <Button
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="120dp"
+            android:layout_height="80dp"
             android:id="@+id/goBtn"
             android:text="Go -->"
             android:layout_alignStart="@id/view"
@@ -68,12 +69,25 @@
         android:alpha="0.8"/>
 
     <android.support.v7.widget.CardView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <TextView
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:text="Este es mi cardview"/>
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone"
+        android:id="@+id/finishCV">
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/newRaceButton"
+            style="@style/Base.Widget.AppCompat.Button.Borderless.Colored"
+            android:layout_gravity="start"
+            android:text="Play Again"/>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/exitButton"
+            style="@style/Base.Widget.AppCompat.Button.Borderless.Colored"
+            android:layout_gravity="end"
+            android:text="Exit"/>
     </android.support.v7.widget.CardView>
 
 </FrameLayout>

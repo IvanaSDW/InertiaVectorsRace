@@ -32,6 +32,8 @@ public class RacingTrackView extends View {
     private static final int FINISH_POSTER_WIDTH = 500;
     private Rect finishPosterRect;
     private Rect finishBGRect;
+    private RectF finishBtnPlayAqain, finishBtnExit;
+
     //Set-able fields
     private InertiaRaceTrack raceTrack;
     private Path runnerPath;
@@ -44,6 +46,7 @@ public class RacingTrackView extends View {
     private boolean performMove;
     private boolean lapFinished;
     private boolean crashMayOccur, crashWillOccur, crashOccurred, gettingOutOfCrash;
+    private boolean newLap;
     //¬¬
 
     //Paints
@@ -139,44 +142,19 @@ public class RacingTrackView extends View {
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        RectF runnerRect = new RectF();
-        runnerPath.computeBounds(runnerRect, true);
-        float runnerScale = gridSize * 2f / runnerRect.width();
-        runnerMatrix = new Matrix();
-        runnerMatrix.setScale(runnerScale, runnerScale);
-        runnerPath.transform(runnerMatrix);
-        runnerPath.computeBounds(runnerRect, true);
-        runnerPath.offset(raceTrack.getStartPoint().x * gridSize - runnerRect.width(),
-                raceTrack.getStartPoint().y * gridSize - (runnerRect.height() / 2));
-        lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize - gridSize),
-                (int) (raceTrack.getStartPoint().y * gridSize)), new Point((int) (raceTrack.getStartPoint().x * gridSize),
-                (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
-        touchedMove = 5;
-        lap = new VectorLap();
-        posibleMoves = new PosibleMovesSet(lastMove, gridSize, crashOccurred, rows, columns);
-        movesNext = new PosibleMovesSet(posibleMoves.get(touchedMove - 1), gridSize, crashOccurred, rows, columns);
-        movesPath = new PosibleMovesPath(posibleMoves, gridSize);
-        movesPathNext = new PosibleMovesPath(movesNext, gridSize);
-        prevMoveFinishTime = lapStartTime;
-        currentAngle = 0;
-        runnerRotator = new Matrix();
-        currentRunnerPos = new Matrix();
         fullClip = new Region();
         fullClip.set(getLeft(), getTop(), getRight(), getBottom());
         finishBGRect = new Rect(0, 0, lowerRightCorner.x, lowerRightCorner.y);
         finishPosterRect = new Rect(finishBGRect.centerX() - (FINISH_POSTER_WIDTH / 2), finishBGRect.centerY() - (int)(FINISH_POSTER_WIDTH / 1.62 / 2),
                 finishBGRect.centerX() + (FINISH_POSTER_WIDTH / 2), finishBGRect.centerY() + (int)(FINISH_POSTER_WIDTH / 1.62 / 2));
-
-        //Init Flags
-        cluesEnabled = false;
-        moveAllowed = false;
-        performMove = false;
-        crashMayOccur = false;
-        crashOccurred = false;
-        crashWillOccur = false;
-        gettingOutOfCrash = false;
-        lapFinished = false;
-        //¬¬
+        finishBtnPlayAqain = new RectF((float) (finishPosterRect.left + finishPosterRect.width() * 0.1),
+                (float) (finishPosterRect.bottom - finishPosterRect.height()*.1),
+                (float) (finishPosterRect.left + finishPosterRect.width() * 0.4),
+                (float) (finishPosterRect.bottom - finishPosterRect.height()*.05));
+        finishBtnExit = new RectF((int)(finishPosterRect.right - finishPosterRect.width() * 0.4),
+                (int)(finishPosterRect.bottom - finishPosterRect.height()*.1),
+                (int)(finishPosterRect.right - finishPosterRect.width() * 0.1),
+                (int)(finishPosterRect.bottom - finishPosterRect.height()*.05));
 
         scaleGestureDetector = new ScaleGestureDetector(getContext(), new zoomGestureListener());
         gridBounds = new RectF(0, 0, gridSize * columns, gridSize * rows);
@@ -241,6 +219,7 @@ public class RacingTrackView extends View {
         finishTitlePaint.setAntiAlias(true);
         finishTitlePaint.setTextSize(30);
         //¬¬
+        //initLap();
     }
 
     @Override
@@ -264,16 +243,15 @@ public class RacingTrackView extends View {
         drawGrid(canvas);
         drawTrack(canvas);
         drawChicanas(canvas);
-        drawLap(canvas);
-        drawRunner(canvas);
+        if (moveAllowed && !lapFinished) {
+            drawLap(canvas);
+            drawRunner(canvas);
+            drawPosibleMoves(canvas);
+        }
         if (performMove) {
             drawMove(canvas);
         }
-        if (moveAllowed && !lapFinished) {
-            drawPosibleMoves(canvas);
-        }
-
-        if (lapFinished) drawFinished(canvas);
+        if (lapFinished && !isNewLap()) drawFinished(canvas);
         canvas.restore();
     }
 
@@ -288,7 +266,6 @@ public class RacingTrackView extends View {
         canvas.drawText("Average speed", finishPosterRect.left + finishPosterRect.width()*0.07f, finishPosterRect.top + finishPosterRect.height()*0.65f, finishTextPaint);
         canvas.drawText(String.valueOf(lap.getAverageSpeedPerMin()) + " px/min", finishPosterRect.left + finishPosterRect.width()*0.55f, finishPosterRect.top + finishPosterRect.height()*0.65f, finishTextPaint);
         canvas.drawText("Your score", finishPosterRect.left + finishPosterRect.width()*0.07f, finishPosterRect.top + finishPosterRect.height()*0.8f, finishTextPaint);
-
     }
 
     private String toHMSC(long timeMils) {
@@ -563,6 +540,51 @@ public class RacingTrackView extends View {
         return true;
     }
 
+    public void initLap() {
+        //Lap Parameters
+        pathParser = new SVGPathParser();
+        runnerPath = new Path();
+        try {
+            runnerPath = pathParser.parsePath(Paths.TINY_CAR); //Set the runner figure to use
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        RectF runnerRect = new RectF();
+        runnerPath.computeBounds(runnerRect, true);
+        float runnerScale = gridSize * 2f / runnerRect.width();
+        runnerMatrix = new Matrix();
+        runnerMatrix.setScale(runnerScale, runnerScale);
+        runnerPath.transform(runnerMatrix);
+        runnerPath.computeBounds(runnerRect, true);
+        runnerPath.offset(raceTrack.getStartPoint().x * gridSize - runnerRect.width(),
+                raceTrack.getStartPoint().y * gridSize - (runnerRect.height() / 2));
+        lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize - gridSize),
+                (int) (raceTrack.getStartPoint().y * gridSize)), new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        touchedMove = 5;
+        lap = new VectorLap();
+        posibleMoves = new PosibleMovesSet(lastMove, gridSize, crashOccurred, rows, columns);
+        movesNext = new PosibleMovesSet(posibleMoves.get(touchedMove - 1), gridSize, crashOccurred, rows, columns);
+        movesPath = new PosibleMovesPath(posibleMoves, gridSize);
+        movesPathNext = new PosibleMovesPath(movesNext, gridSize);
+        prevMoveFinishTime = lapStartTime;
+        currentAngle = 0;
+        runnerRotator = new Matrix();
+        currentRunnerPos = new Matrix();
+
+        //Init Flags
+        cluesEnabled = false;
+        moveAllowed = false;
+        performMove = false;
+        crashMayOccur = false;
+        crashOccurred = false;
+        crashWillOccur = false;
+        gettingOutOfCrash = false;
+        lapFinished = false;
+        newLap = false;
+        //¬¬
+    }
+
     public void setTouchedMove(int touchedMove) {
         this.touchedMove = touchedMove;
     }
@@ -574,5 +596,13 @@ public class RacingTrackView extends View {
 
     public boolean isLapFinished() {
         return lapFinished;
+    }
+
+    public boolean isNewLap() {
+        return newLap;
+    }
+
+    public void setNewLap(boolean newLap) {
+        this.newLap = newLap;
     }
 }

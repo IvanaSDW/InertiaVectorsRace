@@ -3,9 +3,12 @@ package com.example.aurel.inertiavectorsrace;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.CardView;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+
+import java.math.BigDecimal;
 import java.util.logging.LogRecord;
 
 public class MainActivity extends AppCompatActivity {
@@ -18,10 +21,13 @@ public class MainActivity extends AppCompatActivity {
     private Button startButton, goButton;
     private View rooView;
     private SteeringView steeringView;
+    private CardView finishCV;
+    private Button playAgainButton, exitButton;
     //Vars
     private long startTime;
     private android.os.Handler handler;
     private long speed;
+    private final long DELTA_TIME = 25;
 
 
     @Override
@@ -63,11 +69,27 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        playAgainButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                racingTrackView.setNewLap(true);
+                startButton.setVisibility(View.VISIBLE);
+                finishCV.setVisibility(View.GONE);
+                racingTrackView.invalidate();
+            }
+        });
+
+        exitButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
     }
 
     private void engageAutopilot() {
         autoPilot = true;
-        handler.post(new AutoPilot());
     }
 
     private void bindViews() {
@@ -77,6 +99,9 @@ public class MainActivity extends AppCompatActivity {
         steeringView = (SteeringView) findViewById(R.id.steeringView);
         startButton = (Button) findViewById(R.id.startBtn);
         goButton = (Button) findViewById(R.id.goBtn);
+        finishCV = (CardView) findViewById(R.id.finishCV);
+        playAgainButton = (Button) findViewById(R.id.newRaceButton);
+        exitButton = (Button) findViewById(R.id.exitButton);
     }
 
     @Override
@@ -94,11 +119,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startBtnPressed(View view) {
+        handler.post(new Looper());
         startButton.setVisibility(View.GONE);
         raceChronometerView.toggleStartStop();
         goMode = true;
         setMode = false;
         finisMode = false;
+        racingTrackView.initLap();
         steeringView.setVisibility(View.VISIBLE);
         goButton.setVisibility(View.VISIBLE);
         racingTrackView.setLapStartTime(raceChronometerView.getStartTime());
@@ -117,13 +144,19 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private class AutoPilot implements Runnable {
+    private class Looper implements Runnable {
 
         @Override
         public void run() {
-            if (autoPilot && !racingTrackView.isLapFinished()){
-                goButtonPressed(null);
-                handler.postDelayed(new AutoPilot(), speed);
+            if (racingTrackView.isNewLap()){
+
+            } else {
+                if (racingTrackView.isLapFinished()){
+                    finishCV.setVisibility(View.VISIBLE);
+                }else if (autoPilot){
+                    goButtonPressed(null);
+                }
+                handler.postDelayed(new Looper(), DELTA_TIME);
             }
         }
     }
