@@ -1,16 +1,10 @@
 package com.example.aurel.inertiavectorsrace;
 
 import android.graphics.Color;
-import android.graphics.DashPathEffect;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PathDashPathEffect;
-import android.graphics.PathEffect;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Region;
 
 import java.util.ArrayList;
 
@@ -24,22 +18,23 @@ public class Pista1 extends InertiaRaceTrack {
     }
 
     @Override
-    void setStartPoint(Point startPoint) {
-        startPoint.set(2, 4);
+    void setStartPoint(Point startPoint, int direction) {
+        startPoint.set(5, 22);
+        super.direction = Dir.UP;
     }
 
     @Override
     void setStartLine(Path startLine) {
-        startLine.moveTo(2f, 2);
-        startLine.lineTo(2f, 7);
+        startLine.moveTo(3, 22);
+        startLine.lineTo(8, 22);
     }
 
     @Override
     void setFinisLine(Path finishLine) {
-        finishLine.moveTo(3, 7);
-        finishLine.lineTo(8, 7);
-        finishLine.lineTo(8, 7.4f);
-        finishLine.lineTo(3, 7.4f);
+        finishLine.moveTo(3, 29.6f);
+        finishLine.lineTo(8, 29.6f);
+        finishLine.lineTo(8, 30f);
+        finishLine.lineTo(3, 30f);
         finishLine.close();
     }
 
@@ -82,4 +77,8 @@ public class Pista1 extends InertiaRaceTrack {
         //paint.setPathEffect(pathDashPathEffect);
     }
 
+    @Override
+    public int getDirection() {
+        return super.getDirection();
+    }
 }

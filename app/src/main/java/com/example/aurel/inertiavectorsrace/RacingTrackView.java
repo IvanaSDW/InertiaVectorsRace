@@ -2,7 +2,6 @@ package com.example.aurel.inertiavectorsrace;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -14,7 +13,9 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.view.Display;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -22,33 +23,36 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 import java.text.ParseException;
-import java.util.logging.Handler;
 
 import static android.content.Context.WINDOW_SERVICE;
 
 
 public class RacingTrackView extends View {
+    //Constants
     private static final long CRASH_PENALTY = 5000;
     private static final int FINISH_POSTER_WIDTH = 500;
+    private final float MAX_ZOOM = 3f;
+    private final int NONE = 0, DRAG = 1, ZOOM = 2;
+    //Helpers
+    SVGPathParser pathParser;
     private Rect finishPosterRect;
     private Rect finishBGRect;
     private RectF finishBtnPlayAqain, finishBtnExit;
-
+    //¬¬
     //Set-able fields
     private InertiaRaceTrack raceTrack;
     private Path runnerPath;
     private int rows, columns;
-    //¬¬
-
     //Flags
     private boolean cluesEnabled;
     private boolean moveAllowed;
     private boolean performMove;
+    //¬¬
     private boolean lapFinished;
     private boolean crashMayOccur, crashWillOccur, crashOccurred, gettingOutOfCrash;
     private boolean newLap;
-    //¬¬
-
+    //Fonts
+    private Typeface finishFont;
     //Paints
     private Paint gridBoundsPaint = new Paint();
     private Paint gridPaint = new Paint();
@@ -60,7 +64,6 @@ public class RacingTrackView extends View {
     private Paint finishBGPaint = new Paint();
     private Paint finishTitlePaint = new Paint();
     private Paint finishTextPaint = new Paint();
-
     //Vars
     private VectorLap lap;
     private VectorMove lastMove;
@@ -68,31 +71,31 @@ public class RacingTrackView extends View {
     private PosibleMovesPath movesPath, movesPathNext;
     private long lapStartTime, moveStartTime;
     private long moveFinishTime, prevMoveFinishTime;
-    private int touchedMove;
+    private int touchedMove = 5;
     private int gridTotalWidth, gridTotalHeight;
     private float gridSize;
     private float minZoom;
-    private final float MAX_ZOOM = 3f;
     private RectF gridBounds;
-    private float movToX, movToY, lastTouchX, lastTouchY;
+    private float dX, dY, lastTouchX, lastTouchY;
+    private float previousTranslateY = 0;
+    private float previousTranslateX = 0;
+    private float startX = 0;
+    private float startY = 0;
+    private Point midZoom = new Point();
     private ScaleGestureDetector scaleGestureDetector;
+    private GestureDetector scrollDetector;
     private float scaleFactor = 1f;
+    private RectF viewPort = new RectF();
+    private RectF contentRect = new RectF();
     private float leftClearance, rightClearance;
-    private final int NONE = 0, DRAG = 1, ZOOM = 2;
     private int touchMode = 0;
-    private Bitmap runner;
-    private Bitmap runner1;
     private float angleToRotate, currentAngle;
-    private float arrowLength, arrowAngle;
     private Matrix runnerRotator, runnerMatrix;
     private Region fullClip;
-    private Matrix currentRunnerPos;
+    private float fullScreenWidth, fullScreenHeight;
+    private Point lowerRightCorner;
+    private boolean panLeft = false, panRight = false, panUp = false, panDown = false;
 
-    //Helpers
-    SVGPathParser pathParser;
-
-    //Fonts
-    private Typeface finishFont;
 
     //Constructors
     public RacingTrackView(Context context) {
@@ -103,6 +106,7 @@ public class RacingTrackView extends View {
     public RacingTrackView(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(context, attrs, 0);
+
     }
 
     public RacingTrackView(Context context, AttributeSet attrs, int defStyle) {
@@ -123,8 +127,12 @@ public class RacingTrackView extends View {
         //Measure device screen
         WindowManager wm = (WindowManager) context.getSystemService(WINDOW_SERVICE);
         Display display = wm.getDefaultDisplay();
-        Point lowerRightCorner = new Point();
+        lowerRightCorner = new Point();
         display.getSize(lowerRightCorner);
+        DisplayMetrics metrics = new DisplayMetrics();
+        display.getMetrics(metrics);
+        fullScreenWidth = metrics.widthPixels;
+        fullScreenHeight = metrics.heightPixels;
 
         //UI Parameters
         columns = 50;
@@ -132,13 +140,15 @@ public class RacingTrackView extends View {
         gridTotalWidth = lowerRightCorner.x;
         gridTotalHeight = lowerRightCorner.y;
         gridSize = gridTotalWidth / 50;
+        midZoom = new Point(getWidth() / 2, getHeight() / 2);
+        viewPort.set(0, 0, columns * gridSize, rows * gridSize);
 
         //GameParameters
         raceTrack = new Pista1(gridSize, columns, rows); //Set the track to use
         pathParser = new SVGPathParser();
         runnerPath = new Path();
         try {
-            runnerPath = pathParser.parsePath(Paths.TINY_CAR); //Set the runner figure to use
+            runnerPath = pathParser.parsePath(Paths.ARROW_HEAD); //Set the runner figure to use
         } catch (ParseException e) {
             e.printStackTrace();
         }
@@ -157,6 +167,7 @@ public class RacingTrackView extends View {
                 (int)(finishPosterRect.bottom - finishPosterRect.height()*.05));
 
         scaleGestureDetector = new ScaleGestureDetector(getContext(), new zoomGestureListener());
+        scrollDetector = new GestureDetector(getContext(), new scrollListener());
         gridBounds = new RectF(0, 0, gridSize * columns, gridSize * rows);
 
         //Init fonts
@@ -236,10 +247,16 @@ public class RacingTrackView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
         canvas.save();
-        canvas.scale(scaleFactor, scaleFactor);
-        canvas.translate(movToX / scaleFactor, movToY / scaleFactor);
+        canvas.scale(scaleFactor, scaleFactor, midZoom.x, midZoom.y);
+//        dX = (dX > 0 ? 0 : dX);
+//        dY = (dY > 0 ? 0 : dY);
+        if (dX > 0) {
+            dX = 0;
+        }
+        if (dY > 0) dY = 0;
+        canvas.translate(dX / scaleFactor, dY / scaleFactor);
+        drawHelpers(canvas);
         drawGrid(canvas);
         drawTrack(canvas);
         drawChicanas(canvas);
@@ -253,6 +270,14 @@ public class RacingTrackView extends View {
         }
         if (lapFinished && !isNewLap()) drawFinished(canvas);
         canvas.restore();
+    }
+
+    private void drawHelpers(Canvas canvas) {
+        canvas.drawText("GridBounds Left = " + gridBounds.left, 600, 350, gridPaint);
+        canvas.drawText("zoom scale = " + scaleFactor, 600, 370, gridPaint);
+        canvas.drawText("dX = " + dX, 600, 410, gridPaint);
+        canvas.drawText("dY = " + dY / scaleFactor, 600, 430, gridPaint);
+
     }
 
     private void drawFinished(Canvas canvas) {
@@ -396,10 +421,14 @@ public class RacingTrackView extends View {
         runnerPaint.setColor(color);
         RectF runnerRect = new RectF();
         runnerPath.computeBounds(runnerRect, true);
-        currentRunnerPos = runnerRotator;
         runnerRotator.reset();
         runnerRotator.postRotate(angleToRotate, pivotX, pivotY);
         runnerPath.transform(runnerRotator);
+        int gridX = (int) (lowerRightCorner.x - gridBounds.left);
+        int spriteX = gridX - lastMove.getToPoint().x;
+        if (spriteX <= 200) {
+            panLeft = true;
+        }
         if (!isLapFinished()) computePosibleMoves();
     }
 
@@ -427,10 +456,6 @@ public class RacingTrackView extends View {
         }
     }
 
-    public void computeLap() {
-
-    }
-
     private int fitToGrids(float value, boolean up) {
         if (up) return (int) ((value - value % gridSize) + gridSize);
         else return (int) (value - value % gridSize);
@@ -449,89 +474,45 @@ public class RacingTrackView extends View {
         invalidate();
     }
 
-    private class zoomGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            scaleFactor *= detector.getScaleFactor();
-            scaleFactor = Math.min(Math.max(minZoom, scaleFactor), MAX_ZOOM);
-            invalidate();
-            return true;
-        }
-    }
-
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        //scrollDetector.onTouchEvent(event);
+        scaleGestureDetector.onTouchEvent(event);
 
         if (true == true) {
-            scaleGestureDetector.onTouchEvent(event);
-            switch (event.getAction() & MotionEvent.ACTION_MASK){
+            switch (event.getAction() & MotionEvent.ACTION_MASK) {
                 case MotionEvent.ACTION_DOWN: {
-                    final float x = event.getX();
-                    final float y = event.getY();
-
-                    lastTouchX = x;
-                    lastTouchY = y;
-                    touchMode = NONE;
+                    touchMode = DRAG;
+                    startX = event.getX() - previousTranslateX;
+                    startY = event.getY() - previousTranslateY;
                     break;
                 }
                 case MotionEvent.ACTION_MOVE: {
-                    final float x = event.getX();
-                    final float y = event.getY();
+                    //if (!scaleGestureDetector.isInProgress()) {
+                    dX = event.getX() - startX;
+                    dY = event.getY() - startY;
 
-                    final float dX = x - lastTouchX;
-                    final float dY = y - lastTouchY;
-
-                    lastTouchX = x;
-                    lastTouchY = y;
-
-                    movToX += dX;
-                    movToY += dY;
-
-                    float maxPanClearance = 0.1f;
-                    if (gridBounds.width()*scaleFactor > getMeasuredWidth()) {
-                        leftClearance = gridBounds.width()* maxPanClearance;
-                    } else {
-                        leftClearance = (getMeasuredWidth() - gridBounds.width()*scaleFactor) / 2f;
-                    }
-                    float topClearance;
-                    if (gridBounds.height()*scaleFactor > getMeasuredHeight()) {
-                        topClearance = gridBounds.height() * maxPanClearance;
-                    } else {
-                        topClearance = (getMeasuredHeight() - gridBounds.height()*scaleFactor) / 2f;
-                    }
-
-                    if (gridBounds.width()*scaleFactor > getMeasuredWidth()) {
-                        rightClearance = ((gridBounds.width()*scaleFactor)-(getMeasuredWidth() - leftClearance)) * -1;
-                    }else {
-                        rightClearance = (getMeasuredWidth() - gridBounds.width()*scaleFactor) / 2f;
-                    }
-                    float bottomClearance;
-                    if (gridBounds.height()*scaleFactor > getMeasuredHeight()) {
-                        bottomClearance = ((gridBounds.height()*scaleFactor)-(getMeasuredHeight() - leftClearance)) * -1;
-                    } else {
-                        bottomClearance = (getMeasuredHeight() - gridBounds.height()*scaleFactor) / 2f;
-                    }
-
-                    movToX = movToX > leftClearance ? leftClearance : movToX;
-                    movToX = movToX < rightClearance ? rightClearance : movToX;
-                    movToY = movToY > topClearance ? topClearance : movToY;
-                    movToY = movToY < bottomClearance ? bottomClearance : movToY;
-                    touchMode = DRAG;
+                    // }
                     break;
                 }
-                case MotionEvent.ACTION_POINTER_DOWN:{
+                case MotionEvent.ACTION_POINTER_DOWN: {
                     touchMode = ZOOM;
                     break;
                 }
-                case MotionEvent.ACTION_POINTER_UP:{
-                    touchMode = DRAG;
+                case MotionEvent.ACTION_POINTER_UP: {
+                    touchMode = NONE;
+                    previousTranslateX = dX;
+                    previousTranslateY = dY;
                     break;
                 }
-                case MotionEvent.ACTION_UP:{
+                case MotionEvent.ACTION_UP: {
+                    touchMode = NONE;
+                    previousTranslateX = dX;
+                    previousTranslateY = dY;
                     break;
                 }
             }
-            if (touchMode == DRAG || touchMode == ZOOM){
+            if ((touchMode == DRAG && scaleFactor >= minZoom) || touchMode == ZOOM) {
                 invalidate();
             }
         } else {
@@ -545,7 +526,7 @@ public class RacingTrackView extends View {
         pathParser = new SVGPathParser();
         runnerPath = new Path();
         try {
-            runnerPath = pathParser.parsePath(Paths.TINY_CAR); //Set the runner figure to use
+            runnerPath = pathParser.parsePath(Paths.ARROW_HEAD); //Set the runner figure to use
         } catch (ParseException e) {
             e.printStackTrace();
         }
@@ -556,11 +537,56 @@ public class RacingTrackView extends View {
         runnerMatrix.setScale(runnerScale, runnerScale);
         runnerPath.transform(runnerMatrix);
         runnerPath.computeBounds(runnerRect, true);
-        runnerPath.offset(raceTrack.getStartPoint().x * gridSize - runnerRect.width(),
-                raceTrack.getStartPoint().y * gridSize - (runnerRect.height() / 2));
-        lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize - gridSize),
-                (int) (raceTrack.getStartPoint().y * gridSize)), new Point((int) (raceTrack.getStartPoint().x * gridSize),
-                (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        if (raceTrack.getDirection() == InertiaRaceTrack.Dir.UP) {
+            runnerRotator = new Matrix();
+            runnerRotator.setRotate(-90);
+            runnerPath.transform(runnerRotator);
+            runnerPath.computeBounds(runnerRect, true);
+            runnerPath.offset(raceTrack.getStartPoint().x * gridSize - runnerRect.width() / 2,
+                    raceTrack.getStartPoint().y * gridSize + runnerRect.height());
+            currentAngle = -90;
+            lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize + 2 * gridSize)),
+                    new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                            (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        }
+        if (raceTrack.getDirection() == InertiaRaceTrack.Dir.DOWN) {
+            runnerRotator = new Matrix();
+            runnerRotator.setRotate(90);
+            runnerPath.transform(runnerRotator);
+            runnerPath.computeBounds(runnerRect, true);
+            runnerPath.offset(raceTrack.getStartPoint().x * gridSize + runnerRect.width() / 2,
+                    raceTrack.getStartPoint().y * gridSize - runnerRect.height());
+            currentAngle = 90;
+            lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize - 2 * gridSize)),
+                    new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                            (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        }
+        if (raceTrack.getDirection() == InertiaRaceTrack.Dir.RIGHT) {
+            runnerRotator = new Matrix();
+            runnerRotator.setRotate(0);
+            runnerPath.transform(runnerRotator);
+            runnerPath.computeBounds(runnerRect, true);
+            runnerPath.offset(raceTrack.getStartPoint().x * gridSize - runnerRect.width(),
+                    raceTrack.getStartPoint().y * gridSize - (runnerRect.height() / 2));
+            currentAngle = 0;
+            lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize - 2 * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize)), new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        }
+        if (raceTrack.getDirection() == InertiaRaceTrack.Dir.LEFT) {
+            runnerRotator = new Matrix();
+            runnerRotator.setRotate(180);
+            runnerPath.transform(runnerRotator);
+            runnerPath.computeBounds(runnerRect, true);
+            runnerPath.offset(raceTrack.getStartPoint().x * gridSize + runnerRect.width(),
+                    raceTrack.getStartPoint().y * gridSize + runnerRect.height() / 2);
+            currentAngle = 180;
+            lastMove = new VectorMove(new Point((int) (raceTrack.getStartPoint().x * gridSize + 2 * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize)), new Point((int) (raceTrack.getStartPoint().x * gridSize),
+                    (int) (raceTrack.getStartPoint().y * gridSize)), 0, 0);
+        }
         touchedMove = 5;
         lap = new VectorLap();
         posibleMoves = new PosibleMovesSet(lastMove, gridSize, crashOccurred, rows, columns);
@@ -568,9 +594,8 @@ public class RacingTrackView extends View {
         movesPath = new PosibleMovesPath(posibleMoves, gridSize);
         movesPathNext = new PosibleMovesPath(movesNext, gridSize);
         prevMoveFinishTime = lapStartTime;
-        currentAngle = 0;
+
         runnerRotator = new Matrix();
-        currentRunnerPos = new Matrix();
 
         //Init Flags
         cluesEnabled = false;
@@ -592,6 +617,7 @@ public class RacingTrackView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        contentRect.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(), getHeight() - getPaddingBottom());
     }
 
     public boolean isLapFinished() {
@@ -604,5 +630,31 @@ public class RacingTrackView extends View {
 
     public void setNewLap(boolean newLap) {
         this.newLap = newLap;
+    }
+
+    private class zoomGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            scaleFactor *= detector.getScaleFactor();
+            scaleFactor = Math.min(Math.max(minZoom, scaleFactor), MAX_ZOOM);
+            midZoom.x = (int) detector.getFocusX();
+            midZoom.y = (int) detector.getFocusY();
+            return true;
+        }
+
+    }
+
+    class scrollListener extends GestureDetector.SimpleOnGestureListener {
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            getHandler().post(new Runnable() {
+                @Override
+                public void run() {
+                    //Toast.makeText(getContext(), "Scrolling now...", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return true;
+//            return super.onScroll(e1, e2, distanceX, distanceY);
+        }
     }
 }

@@ -1,17 +1,15 @@
 package com.example.aurel.inertiavectorsrace;
 
+import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.CardView;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 
-import java.math.BigDecimal;
-import java.util.logging.LogRecord;
-
 public class MainActivity extends AppCompatActivity {
+    private final long DELTA_TIME = 25;
     //Flags
     private boolean setMode, goMode, finisMode;
     private boolean autoPilot;
@@ -27,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private long startTime;
     private android.os.Handler handler;
     private long speed;
-    private final long DELTA_TIME = 25;
+    private long sinceAutopilot;
 
 
     @Override
@@ -46,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
         goMode = false;
         finisMode = false;
         autoPilot = false;
-        speed = 1000;
+        speed = 500;
 
     }
 
@@ -64,8 +62,14 @@ public class MainActivity extends AppCompatActivity {
         goButton.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if (autoPilot) autoPilot = false;
-                else engageAutopilot();
+                if (autoPilot) {
+                    goButton.setText("GO ->");
+                    autoPilot = false;
+                } else {
+                    goButton.setText("Auto-Advance engaged");
+                    sinceAutopilot = 0;
+                    engageAutopilot();
+                }
                 return true;
             }
         });
@@ -149,12 +153,15 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (racingTrackView.isNewLap()){
-
             } else {
                 if (racingTrackView.isLapFinished()){
                     finishCV.setVisibility(View.VISIBLE);
                 }else if (autoPilot){
-                    goButtonPressed(null);
+                    sinceAutopilot += DELTA_TIME;
+                    if (sinceAutopilot >= speed) {
+                        sinceAutopilot = 0;
+                        goButtonPressed(null);
+                    }
                 }
                 handler.postDelayed(new Looper(), DELTA_TIME);
             }

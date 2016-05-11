@@ -1,6 +1,7 @@
 package com.example.aurel.inertiavectorsrace;
 
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
@@ -53,24 +54,30 @@ public class PosibleMovesPath extends Path {
 
 
         Point startPoint = movesSet.get(0).getFromPoint();
-        v1.moveTo(startPoint.x, startPoint.y); v1.lineTo(movesSet.get(0).getToPoint().x, movesSet.get(0).getToPoint().y);
-        v2.moveTo(startPoint.x, startPoint.y); v2.lineTo(movesSet.get(1).getToPoint().x, movesSet.get(1).getToPoint().y);
-        v3.moveTo(startPoint.x, startPoint.y); v3.lineTo(movesSet.get(2).getToPoint().x, movesSet.get(2).getToPoint().y);
-        v4.moveTo(startPoint.x, startPoint.y); v4.lineTo(movesSet.get(3).getToPoint().x, movesSet.get(3).getToPoint().y);
-        v5.moveTo(startPoint.x, startPoint.y); v5.lineTo(movesSet.get(4).getToPoint().x, movesSet.get(4).getToPoint().y);
-        v6.moveTo(startPoint.x, startPoint.y); v6.lineTo(movesSet.get(5).getToPoint().x, movesSet.get(5).getToPoint().y);
-        v7.moveTo(startPoint.x, startPoint.y); v7.lineTo(movesSet.get(6).getToPoint().x, movesSet.get(6).getToPoint().y);
-        v8.moveTo(startPoint.x, startPoint.y); v8.lineTo(movesSet.get(7).getToPoint().x, movesSet.get(7).getToPoint().y);
-        v9.moveTo(startPoint.x, startPoint.y); v9.lineTo(movesSet.get(8).getToPoint().x, movesSet.get(8).getToPoint().y);
-        movesPath.add(v1);
-        movesPath.add(v2);
-        movesPath.add(v3);
-        movesPath.add(v4);
-        movesPath.add(v5);
-        movesPath.add(v6);
-        movesPath.add(v7);
-        movesPath.add(v8);
-        movesPath.add(v9);
+        for (int i = 0; i < 9; i++) {
+            Path v = new Path();
+            v.moveTo(startPoint.x, startPoint.y);
+            v.lineTo(movesSet.get(i).getToPoint().x, movesSet.get(i).getToPoint().y);
+            movesPath.add(v);
+        }
+//        v1.moveTo(startPoint.x, startPoint.y); v1.lineTo(movesSet.get(0).getToPoint().x, movesSet.get(0).getToPoint().y);
+//        v2.moveTo(startPoint.x, startPoint.y); v2.lineTo(movesSet.get(1).getToPoint().x, movesSet.get(1).getToPoint().y);
+//        v3.moveTo(startPoint.x, startPoint.y); v3.lineTo(movesSet.get(2).getToPoint().x, movesSet.get(2).getToPoint().y);
+//        v4.moveTo(startPoint.x, startPoint.y); v4.lineTo(movesSet.get(3).getToPoint().x, movesSet.get(3).getToPoint().y);
+//        v5.moveTo(startPoint.x, startPoint.y); v5.lineTo(movesSet.get(4).getToPoint().x, movesSet.get(4).getToPoint().y);
+//        v6.moveTo(startPoint.x, startPoint.y); v6.lineTo(movesSet.get(5).getToPoint().x, movesSet.get(5).getToPoint().y);
+//        v7.moveTo(startPoint.x, startPoint.y); v7.lineTo(movesSet.get(6).getToPoint().x, movesSet.get(6).getToPoint().y);
+//        v8.moveTo(startPoint.x, startPoint.y); v8.lineTo(movesSet.get(7).getToPoint().x, movesSet.get(7).getToPoint().y);
+//        v9.moveTo(startPoint.x, startPoint.y); v9.lineTo(movesSet.get(8).getToPoint().x, movesSet.get(8).getToPoint().y);
+//        movesPath.add(v1);
+//        movesPath.add(v2);
+//        movesPath.add(v3);
+//        movesPath.add(v4);
+//        movesPath.add(v5);
+//        movesPath.add(v6);
+//        movesPath.add(v7);
+//        movesPath.add(v8);
+//        movesPath.add(v9);
 
     }
 
@@ -120,31 +127,39 @@ public class PosibleMovesPath extends Path {
 
     private void setPaints() {
         paint.setStyle(Paint.Style.FILL_AND_STROKE);
-        paint.setColor(Color.parseColor("#F238B1"));
-        paint.setAlpha(140);
+        paint.setColor(Color.parseColor("#C4E7F2"));
+        paint.setAlpha(250);
         paint.setStrokeWidth(3);
+        paint.setAntiAlias(true);
 
         paintNext.setStyle(Paint.Style.STROKE);
         paintNext.setColor(Color.LTGRAY);
         paintNext.setAlpha(170);
         paintNext.setStrokeWidth(2);
+        paintNext.setAntiAlias(true);
 
         chosenPointPaint.setStyle(Paint.Style.STROKE);
-        chosenPointPaint.setColor(Color.parseColor("#42BF08"));
-        chosenPointPaint.setAlpha(180);
+        chosenPointPaint.setColor(Color.parseColor("#F26924"));
+        chosenPointPaint.setAlpha(255);
         chosenPointPaint.setStrokeWidth(3);
 
         touchedPaint.setStyle(Paint.Style.FILL);
         touchedPaint.setColor(Color.parseColor("#90FC65"));
+        touchedPaint.setAntiAlias(true);
+        //touchedPaint.setAlpha(200);
 
         moveLinePaint.setStyle(Paint.Style.STROKE);
-        moveLinePaint.setStrokeWidth(3);
-        moveLinePaint.setColor(Color.BLACK);
+        DashPathEffect effect = new DashPathEffect(new float[]{10, 3, 10, 3}, 0);
+        moveLinePaint.setPathEffect(effect);
+        moveLinePaint.setStrokeWidth(2);
+        moveLinePaint.setColor(Color.parseColor("#3DC7F5"));
+        moveLinePaint.setAntiAlias(true);
 
         moveLineNextPaint.setStyle(Paint.Style.STROKE);
         moveLineNextPaint.setStrokeWidth(3);
         moveLineNextPaint.setColor(Color.LTGRAY);
         moveLineNextPaint.setAlpha(150);
+        moveLineNextPaint.setAntiAlias(true);
     }
 
     private void initFields() {
@@ -193,7 +208,7 @@ public class PosibleMovesPath extends Path {
     }
 
     public Paint getChosenPointPaint() {
-        return moveLinePaint;
+        return chosenPointPaint;
     }
 
     public Paint getMoveLineNextPaint() {

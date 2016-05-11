@@ -6,15 +6,19 @@ import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.support.annotation.IntDef;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 
 /**
  * Created by aurel on 4/29/2016.
  */
 public abstract class InertiaRaceTrack extends Path {
-    private float gridSize;
     private final float CHICANA_SIZE = 3;
+    int direction;
+    private float gridSize;
     private Path startLine = new Path(), finishLine = new Path(), trackPath = new Path();
     private Point startPoint = new Point();
     private Paint paint = new Paint();
@@ -39,7 +43,7 @@ public abstract class InertiaRaceTrack extends Path {
         setTrackPath(chicanasArray);
         createChicanas(chicanasArray);
         setFinisLine(finishLine);
-        setStartPoint(startPoint);
+        setStartPoint(startPoint, direction);
         setFullRegion(fullRegion, scaleMatrix);
         setPaints(paint, chicanaPaint);
 
@@ -61,15 +65,11 @@ public abstract class InertiaRaceTrack extends Path {
         clip = new Region(0, 0, (int)(columns * gridSize), (int)(rows * gridSize));
     }
 
-    abstract void setStartPoint(Point startPoint);
+    abstract void setStartPoint(Point startPoint, int direction);
 
     abstract void setPaints(Paint paint, Paint chicanaPaint);
 
-    abstract void setStartLine(Path startLine);
-
     abstract void setFinisLine(Path finishLine);
-
-    abstract void setTrackPath(ArrayList<RectF> chicanasArray);
 
     public Path scaleSelf(){
         this.transform(scaleMatrix);
@@ -114,6 +114,8 @@ public abstract class InertiaRaceTrack extends Path {
         return startLine;
     }
 
+    abstract void setStartLine(Path startLine);
+
     public Path getFinishLine() {
         return finishLine;
     }
@@ -121,6 +123,8 @@ public abstract class InertiaRaceTrack extends Path {
     public Path getTrackPath() {
         return trackPath;
     }
+
+    abstract void setTrackPath(ArrayList<RectF> chicanasArray);
 
     public Point getStartPoint() {
         return startPoint;
@@ -136,4 +140,16 @@ public abstract class InertiaRaceTrack extends Path {
 
     public Region getFinishRegion() { return finishRegion; }
 
+    public int getDirection() {
+        return direction;
+    }
+
+    @IntDef({Dir.UP, Dir.DOWN, Dir.LEFT, Dir.RIGHT})
+    @Retention(RetentionPolicy.SOURCE)
+    @interface Dir {
+        int UP = 1;
+        int DOWN = 2;
+        int LEFT = 3;
+        int RIGHT = 4;
+    }
 }
